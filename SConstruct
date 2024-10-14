@@ -43,6 +43,8 @@ if env["platform"] == "windows" and (env["use_mingw"]==True):
     )
 
 elif env['CC'] == 'cl':
+    env.Append(CPPPATH=['libs/mingw_dev_lib/include'])
+    env.Append(LIBPATH=['libs/mingw_dev_lib/lib'])
     env.Append(
         LIBS=[
             "SDL2",

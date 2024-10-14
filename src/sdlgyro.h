@@ -9,7 +9,7 @@ using namespace godot;
     GDCLASS(SDLGyro,Object);
     public:
       void sdl_init();
-      void controller_init();
+      void controller_init(int controller_index = -1);
 
       Variant gamepadPolling();
 

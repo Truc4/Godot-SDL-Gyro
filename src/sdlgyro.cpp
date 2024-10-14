@@ -36,7 +36,7 @@ GamepadMotion gyroSensor;
 
 void SDLGyro::_bind_methods() {
   ClassDB::bind_method(D_METHOD("sdl_init"),&SDLGyro::sdl_init);
-  ClassDB::bind_method(D_METHOD("controller_init"),&SDLGyro::controller_init);
+  ClassDB::bind_method(D_METHOD("controller_init", "controller_index"), &SDLGyro::controller_init, DEFVAL(-1));
   ClassDB::bind_method(D_METHOD("gamepad_polling"),&SDLGyro::gamepadPolling);
   ClassDB::bind_method(D_METHOD("calibrate"),&SDLGyro::calibrate);
   ClassDB::bind_method(D_METHOD("stop_calibrate"),&SDLGyro::stop_calibrate);
@@ -112,42 +112,74 @@ Variant SDLGyro::getProcessedAcceleration(){
 }
 
 
-void SDLGyro::controller_init(){
-  SDL_GameController *test_controller =nullptr;
-  bool test_gyroEnabled;
-  bool test_accelEnabled;
-   //controller initialization
-  for (int i=0;i<SDL_NumJoysticks();i++){
-    //UtilityFunctions::print(SDL_IsGameController(i),"\n");
-    test_controller = SDL_GameControllerOpen(i);
-    //UtilityFunctions::print(SDL_GameControllerNameForIndex(i),"\n");
-    if(SDL_IsGameController(i)){
-      //test gyro
-      if (SDL_GameControllerHasSensor(test_controller,SDL_SENSOR_GYRO)){
-        //UtilityFunctions::print("Gyro Detected\n");
-        SDL_GameControllerSetSensorEnabled(test_controller,SDL_SENSOR_GYRO,SDL_TRUE);
-        test_gyroEnabled=true;
-      }
-      else{ 
-        //UtilityFunctions::print("gyro disabled\n");
-        test_gyroEnabled=false;
-      }
-      //test accelerometer
-      if (SDL_GameControllerHasSensor(test_controller,SDL_SENSOR_ACCEL)){
-        //UtilityFunctions::print("accelerometer Detected\n");
-        SDL_GameControllerSetSensorEnabled(test_controller,SDL_SENSOR_ACCEL,SDL_TRUE);
-        test_accelEnabled=true;
-      }
-      else{
-        //UtilityFunctions::print("accelerometer not Detected\n");
-        test_accelEnabled=false;
-      } 
+void SDLGyro::controller_init(int controller_index) {
+  SDL_GameController *test_controller = nullptr;
+  bool test_gyroEnabled = false;
+  bool test_accelEnabled = false;
+
+  if (controller_index != -1) {
+    // Check if the provided index is valid
+    if (controller_index < 0 || controller_index >= SDL_NumJoysticks()) {
+      UtilityFunctions::print("Invalid controller index\n");
+      return;
     }
-    if (test_accelEnabled && test_gyroEnabled){
-      controller = test_controller;
-      gyroEnabled=true;
-      accelEnabled=true;
+
+    // Attempt to open the specified controller by index
+    test_controller = SDL_GameControllerOpen(controller_index);
+    if (test_controller && SDL_IsGameController(controller_index)) {
+      // Check for gyro and accelerometer sensors
+      if (SDL_GameControllerHasSensor(test_controller, SDL_SENSOR_GYRO)) {
+        SDL_GameControllerSetSensorEnabled(test_controller, SDL_SENSOR_GYRO, SDL_TRUE);
+        test_gyroEnabled = true;
+      }
+      if (SDL_GameControllerHasSensor(test_controller, SDL_SENSOR_ACCEL)) {
+        SDL_GameControllerSetSensorEnabled(test_controller, SDL_SENSOR_ACCEL, SDL_TRUE);
+        test_accelEnabled = true;
+      }
+
+      // If both sensors are enabled, set the controller
+      if (test_accelEnabled && test_gyroEnabled) {
+        controller = test_controller;
+        gyroEnabled = true;
+        accelEnabled = true;
+      } else {
+        UtilityFunctions::print("Selected controller does not have both gyro and accelerometer\n");
+        SDL_GameControllerClose(test_controller);
+      }
+    } else {
+      UtilityFunctions::print("Selected index is not a valid game controller\n");
     }
+
+  } else {
+    // Default behavior: loop through all connected controllers
+    for (int i = 0; i < SDL_NumJoysticks(); i++) {
+      test_controller = SDL_GameControllerOpen(i);
+      if (SDL_IsGameController(i)) {
+        if (SDL_GameControllerHasSensor(test_controller, SDL_SENSOR_GYRO)) {
+          SDL_GameControllerSetSensorEnabled(test_controller, SDL_SENSOR_GYRO, SDL_TRUE);
+          test_gyroEnabled = true;
+        }
+        if (SDL_GameControllerHasSensor(test_controller, SDL_SENSOR_ACCEL)) {
+          SDL_GameControllerSetSensorEnabled(test_controller, SDL_SENSOR_ACCEL, SDL_TRUE);
+          test_accelEnabled = true;
+        }
+
+        if (test_accelEnabled && test_gyroEnabled) {
+          controller = test_controller;
+          gyroEnabled = true;
+          accelEnabled = true;
+          break; // Use the first controller with both sensors
+        } else {
+          SDL_GameControllerClose(test_controller);
+        }
+      }
+    }
+  }
+
+  if (controller) {
+    UtilityFunctions::print("Controller initialized with gyro and accelerometer\n");
+  } else {
+    UtilityFunctions::print("No suitable controller found\n");
   }
 }
 
